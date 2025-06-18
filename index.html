@@ -1,12 +1,161 @@
 <!DOCTYPE html>
 <html lang="et">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Kaitse hangete portaalid</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+    rel="stylesheet"
+  />
   <style>
-    /* … keep your existing styles … */
+    :root {
+      --bg: #f4f6f8;
+      --card: #fff;
+      --pri: #1f2937;
+      --accent: #3b82f6;
+      --err: #ef4444;
+      --txt: #374151;
+      --r: 8px;
+      --p: 1rem;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      background: var(--bg);
+      font-family: 'Inter', sans-serif;
+      color: var(--txt);
+      padding: 2rem;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      color: var(--pri);
+    }
+    .controls {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .controls button {
+      margin: 0 .5rem;
+      padding: .5rem 1rem;
+      border: none;
+      border-radius: var(--r);
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .controls button:hover {
+      background: #2563eb;
+    }
+    #loading, #status {
+      text-align: center;
+      margin: 1rem 0;
+    }
+    #status { color: var(--err); }
+    #container {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fill, minmax(240px,1fr));
+    }
+    .card {
+      background: var(--card);
+      border-radius: var(--r);
+      box-shadow: 0 2px 4px rgba(0,0,0,.1);
+      padding: var(--p);
+      display: flex;
+      flex-direction: column;
+    }
+    .card h2 {
+      font-size: 1.15rem;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: .5rem;
+      margin-bottom: .75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card h2 button {
+      background: none;
+      border: none;
+      color: var(--err);
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+    .card ul {
+      list-style: none;
+      overflow-y: auto;
+      padding-left: 0;
+    }
+    .card ul li {
+      display: flex;
+      align-items: center;
+      margin-bottom: .5rem;
+      gap: .5rem;
+    }
+    .card a {
+      color: var(--pri);
+      text-decoration: none;
+      flex-grow: 1;
+    }
+    .card a:hover {
+      color: var(--accent);
+    }
+    .card ul li button {
+      background: none;
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    /* Modal */
+    #modal {
+      position: fixed;
+      top:0; left:0; right:0; bottom:0;
+      background: rgba(0,0,0,.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      visibility: hidden;
+    }
+    #modal.active { visibility: visible; }
+    #modal .box {
+      background: #fff;
+      padding: 2rem;
+      border-radius: var(--r);
+      width: 320px;
+      max-width: 90%;
+    }
+    #modal label {
+      display: block;
+      margin-top: 1rem;
+      font-weight: 600;
+    }
+    #modal input, #modal select {
+      width: 100%;
+      padding: .5rem;
+      margin-top: .25rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    #modal .actions {
+      text-align: right;
+      margin-top: 1.5rem;
+    }
+    #modal .actions button {
+      margin-left: .5rem;
+      padding: .5rem 1rem;
+      border: none;
+      border-radius: var(--r);
+    }
+    #modal .actions .cancel {
+      background: #ccc;
+      color: #333;
+    }
+    #modal .actions .save {
+      background: var(--accent);
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -17,18 +166,18 @@
   </div>
 
   <div id="loading">Laadin andmeid…</div>
-  <div id="status" style="color: #ef4444; text-align:center;"></div>
+  <div id="status"></div>
   <div id="container"></div>
 
-  <!-- Modal for adding/editing links -->
-  <div id="modal" style="visibility:hidden; /* … your modal styles … */">
+  <!-- Modal for add/edit link -->
+  <div id="modal">
     <div class="box">
       <h2 id="modal-title">Lisa link</h2>
-      <label>Riik</label>
+      <label for="input-country">Riik</label>
       <select id="input-country"></select>
-      <label>Nimi</label>
+      <label for="input-name">Nimi</label>
       <input id="input-name" type="text" />
-      <label>URL</label>
+      <label for="input-url">URL</label>
       <input id="input-url" type="url" />
       <div class="actions">
         <button class="cancel">Tühista</button>
@@ -38,191 +187,169 @@
   </div>
 
   <script>
-  // === CONFIGURE THESE ===
-  const TOKEN = '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';
-  const OWNER = 'alger116';
-  const REPO  = 'def-links';
-  const PATH  = 'db.json';
-  // =======================
+    // — no secrets here — calls go to our Netlify proxy! —
+    // === CONFIGURE ===
+    const PROXY = '/.netlify/functions/github-proxy';
+    // ==================
 
-  let STATE = { data: {}, sha: null };
-  const loading = document.getElementById('loading');
-  const status  = document.getElementById('status');
-  const container = document.getElementById('container');
-  const modal   = document.getElementById('modal');
-  const selCountry = document.getElementById('input-country');
-  const inpName  = document.getElementById('input-name');
-  const inpURL   = document.getElementById('input-url');
-  const modalTitle = document.getElementById('modal-title');
+    let STATE = { data: {}, sha: null };
+    const loading = document.getElementById('loading');
+    const status  = document.getElementById('status');
+    const container = document.getElementById('container');
+    const modal   = document.getElementById('modal');
+    const selCountry = document.getElementById('input-country');
+    const inpName  = document.getElementById('input-name');
+    const inpURL   = document.getElementById('input-url');
+    const modalTitle = document.getElementById('modal-title');
 
-  function authHeaders(m) {
-    const h = { 'Accept':'application/vnd.github.v3+json' };
-    if (m !== 'GET') {
-      h['Authorization'] = `token ${TOKEN}`;
-      h['Content-Type']  = 'application/json';
+    // Fetch the file (content & sha) via our proxy
+    async function fetchData() {
+      loading.style.display = '';
+      status.textContent = '';
+      try {
+        const res = await fetch(PROXY);
+        if (!res.ok) throw new Error(`Andmete laadimine ebaõnnestus (${res.status})`);
+        const { content, sha } = await res.json();
+        const data = JSON.parse(atob(content));
+        STATE = { data, sha };
+        renderGrid();
+      } catch (e) {
+        status.textContent = e.message;
+      } finally {
+        loading.style.display = 'none';
+      }
     }
-    return h;
-  }
 
-  // Fetch raw JSON + SHA
-  async function fetchData() {
-    loading.style.display = '';
-    status.textContent = '';
-    try {
-      const rawUrl = `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${PATH}`;
-      const dRes = await fetch(rawUrl);
-      if (!dRes.ok) throw new Error(`Andmeid ei saa laadida (${dRes.status})`);
-      const data = await dRes.json();
-      const apiUrl = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`;
-      const mRes = await fetch(apiUrl, { headers: authHeaders('GET') });
-      if (!mRes.ok) throw new Error(`SHA ei saa laadida (${mRes.status})`);
-      const { sha } = await mRes.json();
-      STATE = { data, sha };
-      renderGrid();
-    } catch (e) {
-      status.textContent = e.message;
-    } finally {
-      loading.style.display = 'none';
-    }
-  }
-
-  // Commit back to GitHub
-  async function updateData() {
-    const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`;
-    const body = {
-      message: 'Update links',
-      content: btoa(JSON.stringify(STATE.data, null,2)),
-      sha: STATE.sha
-    };
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: authHeaders('PUT'),
-      body: JSON.stringify(body)
-    });
-    if (!res.ok) throw new Error(`Salvestamine ebaõnnestus (${res.status})`);
-    const { content } = await res.json();
-    STATE.sha = content.sha;
-  }
-
-  // Render all countries & links
-  function renderGrid() {
-    container.innerHTML = '';
-    const countries = Object.keys(STATE.data);
-    if (!countries.length) {
-      container.innerHTML = '<p style="text-align:center;color:#666">Ühtki riiki ega linki pole.</p>';
-      return;
-    }
-    for (const country of countries) {
-      const links = STATE.data[country];
-      const card = document.createElement('div');
-      card.className = 'card';
-      const h2 = document.createElement('h2');
-      h2.textContent = country + ' ';
-      // delete whole country button
-      const btnDelCountry = document.createElement('button');
-      btnDelCountry.textContent = '🗑';
-      btnDelCountry.title = 'Kustuta riik ja kõik lingid';
-      btnDelCountry.onclick = async () => {
-        if (!confirm(`Kustuta riik "${country}"?`)) return;
-        delete STATE.data[country];
-        await updateData();
-        fetchData();
+    // Commit STATE.data back via our proxy
+    async function updateData() {
+      const payload = {
+        message: 'Update links',
+        content: btoa(JSON.stringify(STATE.data, null,2)),
+        sha: STATE.sha
       };
-      h2.appendChild(btnDelCountry);
-      card.appendChild(h2);
+      const res = await fetch(PROXY, {
+        method: 'PUT',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(`Salvestamine ebaõnnestus (${res.status})`);
+      const json = await res.json();
+      STATE.sha = json.content.sha;
+    }
 
-      const ul = document.createElement('ul');
-      for (let i = 0; i < links.length; i++) {
-        const lnk = links[i];
-        const li = document.createElement('li');
-        const a  = document.createElement('a');
-        a.href = lnk.url; a.target = '_blank'; a.textContent = lnk.name;
-        // edit button
-        const btnEdit = document.createElement('button');
-        btnEdit.textContent = '✏️';
-        btnEdit.title = 'Muuda linki';
-        btnEdit.onclick = () => openLinkModal(country, i);
-        // delete button
-        const btnX = document.createElement('button');
-        btnX.textContent = '❌';
-        btnX.title = 'Kustuta link';
-        btnX.onclick = async () => {
-          if (!confirm(`Kustuta link "${lnk.name}"?`)) return;
-          STATE.data[country].splice(i,1);
+    // Render all countries & their links
+    function renderGrid() {
+      container.innerHTML = '';
+      const countries = Object.keys(STATE.data);
+      if (!countries.length) {
+        container.innerHTML = '<p style="text-align:center;color:#666">Ühtki riiki ega linki pole.</p>';
+        return;
+      }
+      countries.forEach(country => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const h2 = document.createElement('h2');
+        h2.textContent = country;
+        const btnDelCountry = document.createElement('button');
+        btnDelCountry.textContent = '🗑';
+        btnDelCountry.title = 'Kustuta riik ja kõik lingid';
+        btnDelCountry.onclick = async () => {
+          if (!confirm(`Kustuta riik "${country}"?`)) return;
+          delete STATE.data[country];
           await updateData();
           fetchData();
         };
-        li.append(a, btnEdit, btnX);
-        ul.appendChild(li);
+        h2.appendChild(btnDelCountry);
+        card.appendChild(h2);
+
+        const ul = document.createElement('ul');
+        STATE.data[country].forEach((lnk,i) => {
+          const li = document.createElement('li');
+          const a  = document.createElement('a');
+          a.href = lnk.url; a.target = '_blank'; a.textContent = lnk.name;
+
+          const btnEdit = document.createElement('button');
+          btnEdit.textContent = '✏️';
+          btnEdit.title = 'Muuda linki';
+          btnEdit.onclick = () => openLinkModal(country, i);
+
+          const btnX = document.createElement('button');
+          btnX.textContent = '❌';
+          btnX.title = 'Kustuta link';
+          btnX.onclick = async () => {
+            if (!confirm(`Kustuta link "${lnk.name}"?`)) return;
+            STATE.data[country].splice(i,1);
+            await updateData();
+            fetchData();
+          };
+
+          li.append(a, btnEdit, btnX);
+          ul.appendChild(li);
+        });
+        card.appendChild(ul);
+        container.appendChild(card);
+      });
+    }
+
+    // Modal state
+    let editing = null; // { country, index } or null
+
+    // Open the modal for add/edit link
+    function openLinkModal(country, index) {
+      // populate dropdown
+      selCountry.innerHTML = Object.keys(STATE.data)
+        .map(c => `<option${c===country?' selected':''}>${c}</option>`)
+        .join('');
+      if (index==null) {
+        modalTitle.textContent = 'Lisa link';
+        inpName.value = inpURL.value = '';
+        editing = { country:null, index:null };
+      } else {
+        modalTitle.textContent = 'Muuda linki';
+        const item = STATE.data[country][index];
+        inpName.value = item.name;
+        inpURL.value   = item.url;
+        editing = { country, index };
       }
-      card.appendChild(ul);
-      container.appendChild(card);
+      modal.classList.add('active');
     }
-  }
 
-  // ------------------- Modal Logic -------------------
-
-  let editInfo = null;
-
-  function openLinkModal(country, index=null) {
-    // Populate country dropdown
-    selCountry.innerHTML = Object.keys(STATE.data)
-      .map(c => `<option${c===country?' selected':''}>${c}</option>`)
-      .join('');
-    if (index === null) {
-      modalTitle.textContent = 'Lisa link';
-      inpName.value = inpURL.value = '';
-      editInfo = { country:null, index:null };
-    } else {
-      modalTitle.textContent = 'Muuda linki';
-      const link = STATE.data[country][index];
-      inpName.value = link.name;
-      inpURL.value  = link.url;
-      editInfo = { country, index };
+    function closeModal() {
+      modal.classList.remove('active');
+      editing = null;
     }
-    modal.style.visibility = 'visible';
-  }
+    document.querySelector('#modal .cancel').onclick = closeModal;
 
-  function closeModal() {
-    modal.style.visibility = 'hidden';
-    editInfo = null;
-  }
+    // Save from modal
+    document.querySelector('#modal .save').onclick = async () => {
+      const country = selCountry.value.trim();
+      const name    = inpName.value.trim();
+      const url     = inpURL.value.trim();
+      if (!country||!name||!url) {
+        return alert('Täida kõik väljad!');
+      }
+      if (!STATE.data[country]) STATE.data[country] = [];
+      if (editing.index==null) {
+        STATE.data[country].push({ name, url });
+      } else {
+        STATE.data[editing.country][editing.index] = { name, url };
+      }
+      try {
+        await updateData();
+        closeModal();
+        fetchData();
+      } catch (e) {
+        alert(e.message);
+      }
+    };
 
-  document.querySelector('#modal .cancel').onclick = closeModal;
-
-  document.querySelector('#modal .save').onclick = async () => {
-    const country = selCountry.value.trim();
-    const name    = inpName.value.trim();
-    const url     = inpURL.value.trim();
-    if (!country||!name||!url) {
-      return alert('Täida kõik väljad!');
-    }
-    // add new country if needed
-    if (!STATE.data[country]) STATE.data[country] = [];
-    if (editInfo.index === null) {
-      // new link
-      STATE.data[country].push({ name, url });
-    } else {
-      // update existing
-      STATE.data[editInfo.country][editInfo.index] = { name, url };
-    }
-    try {
-      await updateData();
-      closeModal();
-      fetchData();
-    } catch (e) {
-      alert(e.message);
-    }
-  };
-
-  // Hook up controls
-  document.getElementById('btn-add-country')
-    .onclick = async () => {
+    // “Lisa riik” button
+    document.getElementById('btn-add-country').onclick = async () => {
       const name = prompt('Sisesta uue riigi nimi:').trim();
       if (!name) return;
       if (STATE.data[name]) {
-        alert(`Riik "${name}" juba eksisteerib.`);
-        return;
+        return alert(`Riik "${name}" juba eksisteerib.`);
       }
       STATE.data[name] = [];
       try {
@@ -233,11 +360,11 @@
       }
     };
 
-  document.getElementById('btn-add-link')
-    .onclick = () => openLinkModal(null, null);
+    // “Lisa link” button
+    document.getElementById('btn-add-link').onclick = () => openLinkModal(null, null);
 
-  // Initial load
-  fetchData();
+    // initial load
+    fetchData();
   </script>
 </body>
 </html>
