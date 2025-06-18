@@ -6,153 +6,268 @@
   <title>Kaitse hangete portaalid</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    /* (same styling as your original file) */
-    :root { --bg-color:#f4f6f8; --card-bg:#fff; --primary:#1f2937; --accent:#3b82f6; --error:#ef4444; --text:#374151; --radius:8px; --pad:1.5rem; }
-    * { box-sizing:border-box; margin:0; padding:0; }
-    body { background:var(--bg-color); font-family:'Inter',sans-serif; color:var(--text); padding:2rem; }
-    h1 { text-align:center; margin-bottom:1.5rem; color:var(--primary); }
+    :root {
+      --bg: #f4f6f8;
+      --card: #fff;
+      --pri: #1f2937;
+      --accent: #3b82f6;
+      --err: #ef4444;
+      --txt: #374151;
+      --r: 8px;
+      --p: 1rem;
+    }
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body { background: var(--bg); font-family: 'Inter',sans-serif; color: var(--txt); padding: 2rem; }
+    h1 { text-align: center; margin-bottom: 1.5rem; color: var(--pri); }
     .controls { text-align:center; margin-bottom:1.5rem; }
-    .controls button{margin:0 .5rem;padding:.5rem 1rem;border:none;border-radius:var(--radius);background:var(--accent);color:#fff;cursor:pointer;}
-    .controls button:hover{background:#2563eb;}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;}
-    .card{background:var(--card-bg);border-radius:var(--radius);box-shadow:0 2px 4px rgba(0,0,0,.1);padding:var(--pad);}
-    .card h2{font-size:1.25rem;margin-bottom:.75rem;color:var(--accent);}
-    .card ul{list-style:none;max-height:200px;overflow-y:auto;}
-    .card li{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;}
-    .card a{color:var(--primary);text-decoration:none;flex-grow:1;} .card a:hover{color:var(--accent);}
-    .del-link{background:none;border:none;color:var(--error);cursor:pointer;margin-left:.5rem;font-size:1.1rem;}
-    /* modal styles omitted for brevity—you can reuse yours below */
+    .controls button {
+      margin:0 .5rem; padding:.5rem 1rem; border:none; border-radius:var(--r);
+      background:var(--accent); color:#fff; cursor:pointer;
+    }
+    .controls button:hover { background: #2563eb; }
+    #container { display:grid; gap:1rem; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); }
+    .card {
+      background:var(--card); border-radius:var(--r);
+      box-shadow:0 2px 4px rgba(0,0,0,.1); padding:var(--p);
+      position: relative;
+    }
+    .card h2 {
+      font-size:1.2rem; margin-bottom:.75rem; color:var(--accent);
+      display:flex; justify-content: space-between; align-items:center;
+    }
+    .card h2 button {
+      border:none; background:none; color:var(--err); font-size:1.1rem; cursor:pointer;
+    }
+    .card ul { list-style:none; max-height:200px; overflow-y:auto; }
+    .card li { display:flex; align-items:center; margin-bottom:.5rem; }
+    .card a {
+      color:var(--pri); text-decoration:none; flex-grow:1;
+    }
+    .card a:hover { color:var(--accent); }
+    /* Modal */
+    #modal {
+      position:fixed; top:0; left:0; right:0; bottom:0;
+      background: rgba(0,0,0,0.5); display:flex;
+      align-items:center; justify-content:center; visibility:hidden;
+    }
+    #modal.active { visibility: visible; }
+    #modal .box {
+      background:#fff; padding:2rem; border-radius:var(--r);
+      width:320px; max-width:90%;
+    }
+    #modal label { display:block; margin-top:1rem; font-weight:600; }
+    #modal input, #modal select {
+      width:100%; padding:.5rem; margin-top:.25rem; border:1px solid #ccc; border-radius:4px;
+    }
+    #modal .actions { text-align:right; margin-top:1.5rem; }
+    #modal .actions button {
+      margin-left:.5rem; padding:.5rem 1rem; border:none; border-radius:var(--r);
+    }
+    #modal .actions .save { background:var(--accent); color:#fff; }
+    #modal .actions .cancel { background:#ccc; color:#333; }
+    /* Loading / Error */
+    #status { text-align:center; margin-top:2rem; color:var(--err); }
+    #loading { text-align:center; margin-top:2rem; }
   </style>
 </head>
 <body>
   <h1>Kaitse hangete portaalid</h1>
   <div class="controls">
-    <button id="add-country">Lisa riik</button>
-    <button id="add-link">Lisa link</button>
-    <button id="manage-btn">Halda riike ja linke</button>
+    <button id="btn-add">Lisa link</button>
   </div>
-  <div class="grid" id="container"></div>
+  <div id="loading">Laadin andmeid…</div>
+  <div id="status"></div>
+  <div id="container"></div>
 
-  <!-- (include your modal markup here, unchanged) -->
-  
+  <!-- Modal -->
+  <div id="modal">
+    <div class="box">
+      <h2 id="modal-title">Lisa link</h2>
+      <label for="input-country">Riik</label>
+      <select id="input-country"></select>
+      <label for="input-name">Nimi</label>
+      <input id="input-name" type="text" />
+      <label for="input-url">URL</label>
+      <input id="input-url" type="url" />
+      <div class="actions">
+        <button class="cancel">Tühista</button>
+        <button class="save">Salvesta</button>
+      </div>
+    </div>
+  </div>
 
   <script>
-// === CONFIGURE THESE ===
-const GITHUB_TOKEN = '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'; // PAT with repo scope
-const OWNER        = 'alger116';
-const REPO         = 'def-links';
-const PATH         = 'db.json';
-// =======================
+  // === CONFIGURE ===
+  const TOKEN = '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';
+  const OWNER = 'alger116';
+  const REPO  = 'def-links';
+  const PATH  = 'db.json';
+  // ================
 
-// Helper: only include auth header on non-GET
-function authHeaders(method) {
-  const h = { 'Accept': 'application/vnd.github.v3+json' };
-  if (method !== 'GET') {
-    h['Authorization'] = `token ${GITHUB_TOKEN}`;
-    h['Content-Type']  = 'application/json';
-  }
-  return h;
-}
-
-// Fetch the raw JSON without auth (avoids 401 if your PAT is scoped oddly)
-async function fetchData() {
-  // 1) Get the JSON itself via raw.githubusercontent.com
-  const rawUrl = `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${PATH}`;
-  const dRes   = await fetch(rawUrl);
-  if (!dRes.ok) throw new Error(`Fetching data → ${dRes.status}`);
-  const data = await dRes.json();
-
-  // 2) Fetch the SHA via the API (needs auth)
-  const apiUrl = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`;
-  const { sha } = await fetch(apiUrl, { headers: authHeaders('GET') })
-                      .then(r => { if (!r.ok) throw new Error(`Fetching SHA → ${r.status}`); return r.json(); });
-
-  return { data, sha };
-}
-
-// Push updates back to GitHub (needs auth)
-async function updateData(newData, sha) {
-  const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`;
-  const body = {
-    message: 'Update links',
-    content: btoa(JSON.stringify(newData, null, 2)),
-    sha
-  };
-  const res = await fetch(url, {
-    method: 'PUT',
-    headers: authHeaders('PUT'),
-    body: JSON.stringify(body)
-  });
-  if (!res.ok) throw new Error(`Update failed → ${res.status}`);
-  return res.json();
-}
-
-// Application state
-let STATE = { countries: {}, sha: null };
-
-// Render grid
-async function render() {
-  const { data, sha } = await fetchData();
-  STATE = { countries: data, sha };
-
+  let STATE = { data: {}, sha: null };
   const container = document.getElementById('container');
-  container.innerHTML = '';
-  Object.entries(data).forEach(([country, links]) => {
-    const card = document.createElement('div'); card.className='card';
-    const h2   = document.createElement('h2'); h2.textContent=country;
-    const ul   = document.createElement('ul');
+  const loading   = document.getElementById('loading');
+  const status    = document.getElementById('status');
+  const modal     = document.getElementById('modal');
+  const selCountry= document.getElementById('input-country');
+  const inpName   = document.getElementById('input-name');
+  const inpURL    = document.getElementById('input-url');
+  const modalTitle= document.getElementById('modal-title');
 
-    links.forEach((link, i) => {
-      const li = document.createElement('li');
-      const a  = document.createElement('a');
-      a.href   = link.url; a.target='_blank'; a.textContent=link.name;
+  function authHeaders(m) {
+    const h = { 'Accept':'application/vnd.github.v3+json' };
+    if (m !== 'GET') {
+      h['Authorization'] = `token ${TOKEN}`;
+      h['Content-Type']  = 'application/json';
+    }
+    return h;
+  }
 
-      const del = document.createElement('button');
-      del.className = 'del-link';
-      del.textContent = '×';
-      del.onclick = async () => {
-        if (!confirm(`Eemalda link "${link.name}"?`)) return;
-        data[country].splice(i,1);
-        await updateData(data, sha);
-        render();
-      };
+  async function fetchData() {
+    loading.style.display = '';
+    status.textContent = '';
+    try {
+      // raw JSON
+      const rawUrl = `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/${PATH}`;
+      const dRes   = await fetch(rawUrl);
+      if (!dRes.ok) throw new Error(`Viga andmete toomisel (${dRes.status})`);
+      const data = await dRes.json();
 
-      li.append(a, del);
-      ul.appendChild(li);
+      // SHA
+      const apiUrl = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`;
+      const meta   = await fetch(apiUrl, { headers: authHeaders('GET') });
+      if (!meta.ok) throw new Error(`Viga SHA toomisel (${meta.status})`);
+      const { sha } = await meta.json();
+
+      STATE = { data, sha };
+      renderGrid();
+    } catch (e) {
+      status.textContent = e.message;
+    } finally {
+      loading.style.display = 'none';
+    }
+  }
+
+  async function updateData() {
+    const url  = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`;
+    const body = {
+      message: 'Update links',
+      content: btoa(JSON.stringify(STATE.data, null,2)),
+      sha: STATE.sha
+    };
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: authHeaders('PUT'),
+      body: JSON.stringify(body)
     });
+    if (!res.ok) throw new Error(`Salvestamine ebaõnnestus (${res.status})`);
+    const { content } = await res.json();
+    STATE.sha = content.sha;
+  }
 
-    card.append(h2, ul);
-    container.appendChild(card);
-  });
-}
+  function renderGrid() {
+    container.innerHTML = '';
+    const entries = Object.entries(STATE.data);
+    if (!entries.length) {
+      container.innerHTML = '<p style="text-align:center; color:#666">Ühtki linki veel pole.</p>';
+      return;
+    }
+    entries.forEach(([country, links]) => {
+      const card = document.createElement('div'), h2 = document.createElement('h2'), ul = document.createElement('ul');
+      h2.textContent = country;
+      const btnDelCountry = document.createElement('button');
+      btnDelCountry.textContent='🗑';
+      btnDelCountry.title='Kustuta riik ja kõik lingid';
+      btnDelCountry.onclick = async () => {
+        if (!confirm(`Kustuta riik "${country}"?`)) return;
+        delete STATE.data[country];
+        await updateData();
+        fetchData();
+      };
+      h2.appendChild(btnDelCountry);
 
-// Add-country & add-link
-document.getElementById('add-country').onclick = async () => {
-  const name = prompt('Sisesta uue riigi nimi:').trim();
-  if (!name) return alert('Tühi nimi.');
-  const { countries, sha } = STATE;
-  if (countries[name]) return alert('Eksisteerib juba.');
-  countries[name] = [];
-  await updateData(countries, sha);
-  render();
-};
+      links.forEach((lnk,i) => {
+        const li = document.createElement('li'), a = document.createElement('a'), btnDel = document.createElement('button');
+        a.href=lnk.url; a.textContent=lnk.name; a.target='_blank';
+        btnDel.textContent='✏️'; btnDel.title='Muuda linki';
+        btnDel.onclick = () => openModal(country, i);
+        const btnX = document.createElement('button');
+        btnX.textContent='❌'; btnX.title='Kustuta link';
+        btnX.onclick = async () => {
+          if (!confirm(`Kustuta link "${lnk.name}"?`)) return;
+          STATE.data[country].splice(i,1);
+          await updateData();
+          fetchData();
+        };
+        li.append(a, btnDel, btnX);
+        ul.append(li);
+      });
 
-document.getElementById('add-link').onclick = async () => {
-  const country = prompt('Riik:\n' + Object.keys(STATE.countries).join(', '));
-  if (!STATE.countries[country]) return alert('Riiki ei leitud.');
-  const name = prompt('Lingi nimi:').trim();
-  const url  = prompt('URL:').trim();
-  if (!name||!url) return alert('Nimi ja URL vajalikud.');
-  const { countries, sha } = STATE;
-  countries[country].push({ name, url });
-  await updateData(countries, sha);
-  render();
-};
+      card.className='card';
+      card.append(h2,ul);
+      container.append(card);
+    });
+  }
 
-// Kick off
-render().catch(err=>{
-  document.body.innerHTML = `<h1>Viga:</h1><pre>${err.message}</pre>`;
-});
-</script>
+  // Modal logic
+  let editInfo = null; // { country, index } or null
+
+  function openModal(countryList, idx=null) {
+    // populate countries dropdown
+    selCountry.innerHTML = Object.keys(STATE.data)
+      .map(c=>`<option${c===countryList?' selected':''}>${c}</option>`)
+      .join('');
+    if (idx===null) {
+      modalTitle.textContent = 'Lisa link';
+      inpName.value = inpURL.value = '';
+    } else {
+      modalTitle.textContent = 'Muuda linki';
+      const val = STATE.data[countryList][idx];
+      inpName.value = val.name;
+      inpURL.value  = val.url;
+    }
+    editInfo = idx===null 
+      ? { country:null, index:null } 
+      : { country: countryList, index: idx };
+    modal.classList.add('active');
+  }
+
+  function closeModal() {
+    modal.classList.remove('active');
+    editInfo = null;
+  }
+
+  document.querySelector('#modal .cancel').onclick = closeModal;
+
+  document.querySelector('#modal .save').onclick = async () => {
+    const country = selCountry.value.trim();
+    const name    = inpName.value.trim();
+    const url     = inpURL.value.trim();
+    if (!country||!name||!url) {
+      return alert('Täida kõik väljad!');
+    }
+    // ensure country exists
+    if (!STATE.data[country]) STATE.data[country] = [];
+    if (editInfo.index===null) {
+      // new
+      STATE.data[country].push({ name, url });
+    } else {
+      // edit
+      STATE.data[editInfo.country][editInfo.index] = { name, url };
+    }
+    try {
+      await updateData();
+      closeModal();
+      fetchData();
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
+  document.getElementById('btn-add').onclick = () => openModal('', null);
+
+  // Kickoff
+  fetchData();
+  </script>
 </body>
 </html>
