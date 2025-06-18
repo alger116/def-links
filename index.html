@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Kaitse hangete portaalid</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* (same styling as your original file) */
+    :root { --bg-color:#f4f6f8; --card-bg:#fff; --primary:#1f2937; --accent:#3b82f6; --error:#ef4444; --text:#374151; --radius:8px; --pad:1.5rem; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { background:var(--bg-color); font-family:'Inter',sans-serif; color:var(--text); padding:2rem; }
+    h1 { text-align:center; margin-bottom:1.5rem; color:var(--primary); }
+    .controls { text-align:center; margin-bottom:1.5rem; }
+    .controls button{margin:0 .5rem;padding:.5rem 1rem;border:none;border-radius:var(--radius);background:var(--accent);color:#fff;cursor:pointer;}
+    .controls button:hover{background:#2563eb;}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;}
+    .card{background:var(--card-bg);border-radius:var(--radius);box-shadow:0 2px 4px rgba(0,0,0,.1);padding:var(--pad);}
+    .card h2{font-size:1.25rem;margin-bottom:.75rem;color:var(--accent);}
+    .card ul{list-style:none;max-height:200px;overflow-y:auto;}
+    .card li{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;}
+    .card a{color:var(--primary);text-decoration:none;flex-grow:1;} .card a:hover{color:var(--accent);}
+    .del-link{background:none;border:none;color:var(--error);cursor:pointer;margin-left:.5rem;font-size:1.1rem;}
+    /* modal styles omitted for brevity—you can reuse yours below */
+  </style>
+</head>
+<body>
+  <h1>Kaitse hangete portaalid</h1>
+  <div class="controls">
+    <button id="add-country">Lisa riik</button>
+    <button id="add-link">Lisa link</button>
+    <button id="manage-btn">Halda riike ja linke</button>
+  </div>
+  <div class="grid" id="container"></div>
+
+  <!-- (include your modal markup here, unchanged) -->
+  <!-- … -->
+
+  <script>
+  // === CONFIGURE THESE ===
+  const GITHUB_TOKEN = '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';    // a PAT with repo contents scope
+  const OWNER        = 'alger116';
+  const REPO         = 'def-links';
+  const PATH         = 'db.json';
+  // =======================
+
+  // Helpers for GitHub API
+  async function ghRequest(method, url, body) {
+    const res = await fetch(url, {
+      method,
+      headers: {
+        'Authorization': `token ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        ...(body ? {'Content-Type':'application/json'} : {})
+      },
+      body: body && JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error(`${method} ${url} → ${res.status}`);
+    return res.json();
+  }
+
+  // Fetch current db.json (and its sha)
+  async function fetchData() {
+    const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`;
+    const { content, sha } = await ghRequest('GET', url);
+    const text = atob(content);
+    return { data: JSON.parse(text||'{}'), sha };
+  }
+
+  // Push updated db.json back to GitHub
+  async function updateData(newData, sha) {
+    const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${PATH}`;
+    const body = {
+      message: 'Update links',
+      content: btoa(JSON.stringify(newData, null, 2)),
+      sha
+    };
+    await ghRequest('PUT', url, body);
+  }
+
+  // Application state
+  let STATE = { countries: {}, sha: null };
+
+  // Render grid
+  async function render() {
+    const { data, sha } = await fetchData();
+    STATE = { countries: data, sha };
+    const container = document.getElementById('container');
+    container.innerHTML = '';
+    Object.entries(data).forEach(([country, links]) => {
+      const card = document.createElement('div'); card.className='card';
+      const h2   = document.createElement('h2'); h2.textContent=country;
+      const ul   = document.createElement('ul');
+      links.forEach((link, i) => {
+        const li = document.createElement('li');
+        const a  = document.createElement('a');
+        a.href = link.url; a.target='_blank'; a.textContent=link.name;
+        const del = document.createElement('button');
+        del.className='del-link'; del.textContent='×';
+        del.onclick = async () => {
+          if (!confirm(`Eemalda link "${link.name}"?`)) return;
+          // mutate
+          data[country].splice(i,1);
+          await updateData(data, sha);
+          alert(`"${link.name}" eemaldatud.`);
+          render();
+        };
+        li.append(a, del);
+        ul.appendChild(li);
+      });
+      card.append(h2, ul);
+      container.appendChild(card);
+    });
+  }
+
+  // Simplest prompts for add-country and add-link
+  document.getElementById('add-country').onclick = async () => {
+    const name = prompt('Sisesta uue riigi nimi:').trim();
+    if (!name) return alert('Tühi nimi.');
+    const { countries, sha } = STATE;
+    if (countries[name]) return alert('Eksisteerib juba.');
+    countries[name] = [];
+    await updateData(countries, sha);
+    render();
+  };
+
+  document.getElementById('add-link').onclick = async () => {
+    const country = prompt('Riik:\n' + Object.keys(STATE.countries).join(', '));
+    if (!STATE.countries[country]) return alert('Riiki ei leitud.');
+    const name = prompt('Lingi nimi:').trim();
+    const url  = prompt('URL:').trim();
+    if (!name||!url) return alert('Nimi ja URL vajalikud.');
+    const { countries, sha } = STATE;
+    countries[country].push({ name, url });
+    await updateData(countries, sha);
+    render();
+  };
+
+  // (You can also wire your full “manage” modal to call updateData after inline edits)
+
+  // Initial load
+  render().catch(err=>alert(err.message));
+  </script>
+</body>
+</html>
